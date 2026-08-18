@@ -435,7 +435,7 @@ class _CtaSectionState extends State<_CtaSection> {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${session.accessToken}',
         },
-        body: jsonEncode({'tier': widget.tier.name.toLowerCase()}),
+        body: jsonEncode({'tier': widget.tier.name.toLowerCase(), 'annual': widget.isAnnual}),
       );
 
       if (response.statusCode == 200) {
