@@ -42,17 +42,13 @@ class QuickActions extends StatelessWidget {
         label: 'Write\nBid',
         icon: Icons.edit_note_rounded,
         colorFn: (c, a) => a.success,
-        onTap: (ctx) => ScaffoldMessenger.of(ctx).showSnackBar(
-          const SnackBar(content: Text('Opening Bid Writer...')),
-        ),
+        onTap: (ctx) => ctx.push('/tool/bid_writer/workspace'),
       ),
       _QuickAction(
         label: 'Check\nCompliance',
         icon: Icons.verified_outlined,
         colorFn: (c, a) => a.warning,
-        onTap: (ctx) => ScaffoldMessenger.of(ctx).showSnackBar(
-          const SnackBar(content: Text('Opening Compliance Checker...')),
-        ),
+        onTap: (ctx) => ctx.push('/tool/compliance_tracker/workspace'),
       ),
     ];
 

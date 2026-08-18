@@ -31,7 +31,7 @@ class ToolsGrid extends StatelessWidget {
           itemBuilder: (context, index) {
             return ToolCard(
               tool: tools[index],
-              onTap: () => context.push('/tool/${tools[index].id}'),
+              onTap: () => context.push('/tool/${tools[index].id}/workspace'),
             );
           },
         ),
