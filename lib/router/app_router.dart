@@ -21,6 +21,15 @@ import '../screens/security_screen.dart';
 import '../screens/shell_screen.dart';
 import '../screens/team_screen.dart';
 import '../screens/tool_detail_screen.dart';
+import '../screens/tools/bid_writer_screen.dart';
+import '../screens/tools/capability_statement_screen.dart';
+import '../screens/tools/compliance_tracker_screen.dart';
+import '../screens/tools/contract_finder_screen.dart';
+import '../screens/tools/crm_screen.dart';
+import '../screens/tools/deadline_calendar_screen.dart';
+import '../screens/tools/price_estimator_screen.dart';
+import '../screens/tools/proposal_manager_screen.dart';
+import '../screens/tools/vendor_matching_screen.dart';
 import '../services/procurement_service.dart';
 import '../services/supabase_service.dart';
 
@@ -50,6 +59,33 @@ class AppRouter {
             orElse: () => service.getTools().first,
           );
           return ToolDetailScreen(tool: tool);
+        },
+      ),
+      GoRoute(
+        path: '/tool/:id/workspace',
+        builder: (context, state) {
+          switch (state.pathParameters['id']) {
+            case 'contract_finder':
+              return const ContractFinderScreen();
+            case 'bid_writer':
+              return const BidWriterScreen();
+            case 'price_estimator':
+              return const PriceEstimatorScreen();
+            case 'compliance_tracker':
+              return const ComplianceTrackerScreen();
+            case 'vendor_matching':
+              return const VendorMatchingScreen();
+            case 'proposal_manager':
+              return const ProposalManagerScreen();
+            case 'crm':
+              return const CrmScreen();
+            case 'calendar':
+              return const DeadlineCalendarScreen();
+            case 'capability_gen':
+              return const CapabilityStatementScreen();
+            default:
+              return const ContractFinderScreen();
+          }
         },
       ),
       GoRoute(

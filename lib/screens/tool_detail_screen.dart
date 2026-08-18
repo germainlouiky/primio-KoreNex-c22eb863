@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../models/tool_item.dart';
 import '../theme/theme.dart';
 
@@ -257,11 +258,7 @@ class _CtaButton extends StatelessWidget {
       width: double.infinity,
       height: AppTheme.buttonHeight,
       child: ElevatedButton.icon(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${tool.name} launching soon')),
-          );
-        },
+        onPressed: () => context.push('/tool/${tool.id}/workspace'),
         style: ElevatedButton.styleFrom(
           backgroundColor: tool.accentColor,
           foregroundColor: Colors.white,
