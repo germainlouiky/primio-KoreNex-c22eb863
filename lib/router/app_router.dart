@@ -1,6 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../theme/theme.dart';
 import '../providers/contracts_provider.dart';
 import '../providers/dashboard_provider.dart';
 import '../providers/pricing_provider.dart';
@@ -33,6 +35,123 @@ import '../screens/tools/vendor_matching_screen.dart';
 import '../services/procurement_service.dart';
 import '../services/supabase_service.dart';
 
+// ── Stripe redirect landing screens ──────────────────────────────────────────
+
+class _SubscriptionSuccessScreen extends StatelessWidget {
+  const _SubscriptionSuccessScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppTheme.spacingXl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF22C55E).withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check_circle_rounded,
+                      color: Color(0xFF22C55E), size: 48),
+                ),
+                const SizedBox(height: AppTheme.spacingLg),
+                Text('Subscription Activated!',
+                    style: text.headlineSmall
+                        ?.copyWith(color: colors.onSurface, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center),
+                const SizedBox(height: AppTheme.spacingSm),
+                Text(
+                  'Your plan is now active. Welcome to KoreNex — let\'s start winning contracts.',
+                  style: text.bodyMedium?.copyWith(color: colors.onSurface.withOpacity(0.7)),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppTheme.spacingXl),
+                SizedBox(
+                  width: double.infinity,
+                  height: AppTheme.buttonHeight,
+                  child: ElevatedButton(
+                    onPressed: () => context.go('/dashboard'),
+                    child: const Text('Go to Dashboard'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SubscriptionCancelScreen extends StatelessWidget {
+  const _SubscriptionCancelScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppTheme.spacingXl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: colors.error.withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.cancel_rounded, color: colors.error, size: 48),
+                ),
+                const SizedBox(height: AppTheme.spacingLg),
+                Text('Payment Cancelled',
+                    style: text.headlineSmall
+                        ?.copyWith(color: colors.onSurface, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center),
+                const SizedBox(height: AppTheme.spacingSm),
+                Text(
+                  'No charge was made. You can choose a plan whenever you\'re ready.',
+                  style: text.bodyMedium?.copyWith(color: colors.onSurface.withOpacity(0.7)),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppTheme.spacingXl),
+                SizedBox(
+                  width: double.infinity,
+                  height: AppTheme.buttonHeight,
+                  child: ElevatedButton(
+                    onPressed: () => context.go('/pricing'),
+                    child: const Text('View Plans'),
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacingSm),
+                TextButton(
+                  onPressed: () => context.go('/dashboard'),
+                  child: Text('Back to Dashboard',
+                      style: TextStyle(color: colors.onSurface.withOpacity(0.6))),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 class AppRouter {
   static final router = GoRouter(
     initialLocation: '/login',
@@ -45,6 +164,21 @@ class AppRouter {
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/',
+        redirect: (context, state) {
+          final isLoggedIn = Supabase.instance.client.auth.currentUser != null;
+          return isLoggedIn ? '/dashboard' : '/login';
+        },
+      ),
+      GoRoute(
+        path: '/subscription-success',
+        builder: (context, state) => const _SubscriptionSuccessScreen(),
+      ),
+      GoRoute(
+        path: '/subscription-cancel',
+        builder: (context, state) => const _SubscriptionCancelScreen(),
+      ),
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
