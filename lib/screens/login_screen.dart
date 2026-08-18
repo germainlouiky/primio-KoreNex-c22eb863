@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
 import '../theme/theme.dart';
 
@@ -16,6 +17,41 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscure = true;
   bool _isSignUp = false;
+  bool _rememberMe = false;
+
+  static const _prefKeyEmail = 'remembered_email';
+  static const _prefKeyRemember = 'remember_me';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberedEmail();
+  }
+
+  Future<void> _loadRememberedEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    final remembered = prefs.getBool(_prefKeyRemember) ?? false;
+    if (remembered) {
+      final email = prefs.getString(_prefKeyEmail) ?? '';
+      if (mounted) {
+        setState(() {
+          _rememberMe = true;
+          _emailController.text = email;
+        });
+      }
+    }
+  }
+
+  Future<void> _saveRememberMe(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_rememberMe) {
+      await prefs.setBool(_prefKeyRemember, true);
+      await prefs.setString(_prefKeyEmail, email);
+    } else {
+      await prefs.remove(_prefKeyRemember);
+      await prefs.remove(_prefKeyEmail);
+    }
+  }
 
   @override
   void dispose() {
@@ -49,6 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted && success) {
         // If Supabase returned a session (email confirmation disabled), go straight in
         if (auth.isAuthenticated) {
+          await _saveRememberMe(email);
           context.go('/dashboard');
           return;
         }
@@ -70,6 +107,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     if (success && mounted) {
+      await _saveRememberMe(email);
       context.go('/dashboard');
     } else if (mounted) {
       setState(() => _errorText = auth.error ?? 'Authentication failed. Please try again.');
@@ -173,16 +211,49 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-              if (!_isSignUp) ...[
-                const SizedBox(height: AppTheme.spacingSm),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: isLoading ? null : _handleForgotPassword,
-                    child: Text('Forgot password?', style: text.labelMedium?.copyWith(color: colors.primary)),
+              const SizedBox(height: AppTheme.spacingSm),
+              Row(
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Checkbox(
+                      value: _rememberMe,
+                      onChanged: isLoading
+                          ? null
+                          : (val) => setState(() => _rememberMe = val ?? false),
+                      activeColor: colors.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: AppTheme.spacingSm),
+                  GestureDetector(
+                    onTap: isLoading
+                        ? null
+                        : () => setState(() => _rememberMe = !_rememberMe),
+                    child: Text(
+                      'Remember me',
+                      style: text.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+                    ),
+                  ),
+                  const Spacer(),
+                  if (!_isSignUp)
+                    TextButton(
+                      onPressed: isLoading ? null : _handleForgotPassword,
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        'Forgot password?',
+                        style: text.labelMedium?.copyWith(color: colors.primary),
+                      ),
+                    ),
+                ],
+              ),
               if (_errorText != null) ...[
                 const SizedBox(height: AppTheme.spacingMd),
                 Container(

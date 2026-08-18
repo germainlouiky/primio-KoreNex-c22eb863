@@ -16,7 +16,7 @@ class ShellScreen extends StatelessWidget {
       body: navigationShell,
       floatingActionButton: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          borderRadius: BorderRadius.circular(AppTheme.radiusXl),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -24,13 +24,13 @@ class ShellScreen extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: colors.primary.withOpacity(0.3),
-              blurRadius: 12,
+              color: colors.primary.withOpacity(0.35),
+              blurRadius: 16,
               offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: FloatingActionButton(
+        child: FloatingActionButton.extended(
           heroTag: 'nex_fab',
           onPressed: () => context.push('/nex'),
           backgroundColor: Colors.transparent,
@@ -39,12 +39,19 @@ class ShellScreen extends StatelessWidget {
           focusElevation: 0,
           highlightElevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+            borderRadius: BorderRadius.circular(AppTheme.radiusXl),
           ),
-          child: Icon(
+          icon: Icon(
             Icons.auto_awesome_rounded,
             color: colors.onPrimary,
             size: AppTheme.iconMd,
+          ),
+          label: Text(
+            'Ask Nex',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: colors.onPrimary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),

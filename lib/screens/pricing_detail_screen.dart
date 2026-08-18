@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
 import '../models/tool_item.dart';
 import '../theme/theme.dart';
 
@@ -389,7 +393,7 @@ class _BillingToggle extends StatelessWidget {
   }
 }
 
-class _CtaSection extends StatelessWidget {
+class _CtaSection extends StatefulWidget {
   final PricingTier tier;
   final bool isAnnual;
   final Color accentColor;
@@ -405,6 +409,60 @@ class _CtaSection extends StatelessWidget {
   });
 
   @override
+  State<_CtaSection> createState() => _CtaSectionState();
+}
+
+class _CtaSectionState extends State<_CtaSection> {
+  bool _isLoading = false;
+
+  Future<void> _handleSubscribe() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please log in first')),
+          );
+        }
+        return;
+      }
+
+      final response = await http.post(
+        Uri.parse('https://zxwhkgcrtlvemqabcint.supabase.co/functions/v1/create-checkout-session'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${session.accessToken}',
+        },
+        body: jsonEncode({'tier': widget.tier.name.toLowerCase()}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final checkoutUrl = data['url'];
+        if (checkoutUrl != null) {
+          await launchUrl(Uri.parse(checkoutUrl), webOnlyWindowName: '_self');
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Something went wrong: ${response.body}')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       children: [
@@ -412,30 +470,32 @@ class _CtaSection extends StatelessWidget {
           width: double.infinity,
           height: AppTheme.buttonHeight,
           child: ElevatedButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('${tier.ctaLabel} — subscription coming soon')),
-              );
-            },
+            onPressed: _isLoading ? null : _handleSubscribe,
             style: ElevatedButton.styleFrom(
-              backgroundColor: accentColor,
+              backgroundColor: widget.accentColor,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
               ),
             ),
-            child: Text(
-              tier.ctaLabel,
-              style: text.labelLarge?.copyWith(color: Colors.white),
-            ),
+            child: _isLoading
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : Text(
+                    widget.tier.ctaLabel,
+                    style: widget.text.labelLarge?.copyWith(color: Colors.white),
+                  ),
           ),
         ),
         const SizedBox(height: AppTheme.spacingSm),
         Text(
-          tier.name == 'Enterprise'
+          widget.tier.name == 'Enterprise'
               ? 'No commitment required. Talk to sales today.'
               : 'No credit card required. Cancel anytime.',
-          style: text.labelSmall,
+          style: widget.text.labelSmall,
           textAlign: TextAlign.center,
         ),
       ],

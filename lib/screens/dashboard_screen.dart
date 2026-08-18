@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../providers/dashboard_provider.dart';
 import '../theme/theme.dart';
 import '../widgets/dashboard/dashboard_header.dart';
+import '../widgets/dashboard/quick_actions.dart';
+import '../widgets/dashboard/recent_activity.dart';
 import '../widgets/dashboard/stats_row.dart';
 import '../widgets/dashboard/tools_grid.dart';
 
@@ -28,8 +30,12 @@ class DashboardScreen extends StatelessWidget {
                 winRate: provider.winRate,
               ),
               const SizedBox(height: AppTheme.spacingLg),
+              const QuickActions(),
+              const SizedBox(height: AppTheme.spacingLg),
               ToolsGrid(tools: provider.tools),
               const SizedBox(height: AppTheme.spacingLg),
+              const RecentActivity(),
+              const SizedBox(height: AppTheme.spacingXl),
             ],
           ),
         ),

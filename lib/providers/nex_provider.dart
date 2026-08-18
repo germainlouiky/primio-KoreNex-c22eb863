@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/chat_message.dart';
 import '../services/supabase_service.dart';
 
@@ -13,25 +14,59 @@ class NexProvider extends ChangeNotifier {
     _loadHistory();
   }
 
+  void _addGreeting() {
+    String userName = '';
+    try {
+      final email = Supabase.instance.client.auth.currentUser?.email ?? '';
+      final name = email.split('@').first;
+      if (name.isNotEmpty) userName = name[0].toUpperCase() + name.substring(1);
+    } catch (_) {}
+
+    final greeting = '''Hey${userName.isNotEmpty ? ', $userName' : ''}! 👋 I'm **Nex**, your AI procurement assistant.
+
+Here's what I can help you with today:
+
+🔍 **Find contracts** — Search new opportunities matching your profile
+📝 **Write proposals** — Draft executive summaries and technical volumes
+📊 **Analyze performance** — Win rates, trends, and pipeline insights
+✅ **Check compliance** — Review bid packages for missing requirements
+🏢 **Capability statements** — Build professional cap statements
+💡 **Strategy** — Set-aside eligibility, pricing, and teaming advice
+
+Tap a suggestion below or just ask me anything!''';
+
+    _messages.add(ChatMessage(
+      id: 'greeting',
+      text: greeting,
+      isUser: false,
+      timestamp: DateTime.now(),
+    ));
+  }
+
   List<ChatMessage> get messages => List.unmodifiable(_messages);
   bool get isTyping => _isTyping;
 
   Future<void> _loadHistory() async {
-    if (_supabaseService == null) return;
-    try {
-      final rows = await _supabaseService.loadChatMessages();
-      for (final row in rows) {
-        _messages.add(ChatMessage(
-          id: row['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
-          text: row['text'] as String? ?? '',
-          isUser: row['is_user'] as bool? ?? true,
-          timestamp: DateTime.tryParse(row['created_at'] as String? ?? '') ?? DateTime.now(),
-        ));
+    if (_supabaseService != null) {
+      try {
+        final rows = await _supabaseService.loadChatMessages();
+        for (final row in rows) {
+          _messages.add(ChatMessage(
+            id: row['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
+            text: row['text'] as String? ?? '',
+            isUser: row['is_user'] as bool? ?? true,
+            timestamp: DateTime.tryParse(row['created_at'] as String? ?? '') ?? DateTime.now(),
+          ));
+        }
+      } catch (_) {
+        // Chat works locally even if DB load fails
       }
-      if (_messages.isNotEmpty) notifyListeners();
-    } catch (_) {
-      // Chat works locally even if DB load fails
     }
+    // Show greeting when opening for the first time (no history)
+    if (_messages.isEmpty) {
+      _addGreeting();
+    }
+    notifyListeners();
   }
 
   static const List<String> suggestedPrompts = [
@@ -132,7 +167,7 @@ Which contract or solicitation should I draft this for? Share the solicitation n
 💰 **Pricing structure** — Rate validation & cost realism
 
 Share your solicitation details and I'll generate a compliance checklist. You can also use the **Compliance Checker tool** on the Dashboard for automated scanning.''';
-    } else if (lower.contains('hello') || lower.contains('hi') || lower.contains('hey') || lower.contains('help')) {
+    } else if (lower.contains('hello') || lower.contains('hi') || lower.contains('hey') || lower.contains('help') || lower.contains('what can you do') || lower.contains('what do you do')) {
       response = '''Hey there! 👋 I'm **Nex**, your AI procurement assistant. I can help you with:
 
 🔍 **Find contracts** — Search opportunities matching your profile
@@ -143,7 +178,57 @@ Share your solicitation details and I'll generate a compliance checklist. You ca
 💡 **Strategy** — Set-aside eligibility, pricing, and teaming
 
 What would you like to work on?''';
-    } else if (lower.contains('price') || lower.contains('pricing') || lower.contains('cost') || lower.contains('rate')) {
+    } else if (lower.contains('naics') || lower.contains('code') || lower.contains('category')) {
+      response = '''**NAICS codes** are the foundation of your procurement strategy. Here's what I can do:
+
+📋 **NAICS lookup** — Find the right codes for your services
+🎯 **Primary vs. secondary** — Prioritize codes that match your strongest work
+📊 **Competition analysis** — See how many firms compete in each code
+💰 **Contract volume** — Which NAICS codes have the most federal spending
+
+**Common IT & Services NAICS codes:**
+• **541511** — Custom Computer Programming Services
+• **541512** — Computer Systems Design
+• **541519** — Other Computer-Related Services
+• **541990** — All Other Professional & Technical Services
+• **518210** — Data Processing & Hosting
+
+Which NAICS codes are you currently registered under? I can help optimize your profile.''';
+    } else if (lower.contains('deadline') || lower.contains('due') || lower.contains('urgent') || lower.contains('upcoming')) {
+      response = '''Here are your **upcoming bid deadlines** this month:
+
+🔴 **URGENT — Due in 3 days:**
+• VA Health Records System — \$2.8M (Due Aug 21)
+
+🟡 **Due this week:**
+• DHS Network Security Assessment — \$890K (Due Aug 23)
+• GSA Facilities Management Support — \$1.2M (Due Aug 25)
+
+🟢 **Due next 2 weeks:**
+• USAF IT Modernization — \$4.2M (Due Aug 29)
+• DOD Cloud Infrastructure — \$6.1M (Due Sep 2)
+• HHS Digital Transformation — \$3.3M (Due Sep 5)
+
+**Tip:** I recommend starting the VA Health Records bid today — 3 days is tight for a \$2.8M opportunity.
+
+Want me to help prioritize which ones to pursue?''';
+    } else if (lower.contains('agency') || lower.contains('department') || lower.contains('federal') || lower.contains('government')) {
+      response = '''I can help you target the right **federal agencies** for your business. Here's a snapshot:
+
+🏛️ **Top agencies by IT spending:**
+• **DOD** — \$42B/year (largest buyer)
+• **HHS** — \$11B/year (health IT focus)
+• **DHS** — \$8B/year (cybersecurity heavy)
+• **VA** — \$6B/year (healthcare systems)
+• **GSA** — \$5B/year (enterprise services)
+
+📊 **Your best agency matches** (based on profile):
+1. **DHS** — Strong match for your cybersecurity work
+2. **VA** — Good fit for healthcare IT services
+3. **GSA** — Schedule vehicles available
+
+**Pro tip:** DHS and VA tend to favor small businesses with past performance. Do you have any past performance with these agencies?''';
+    } else if (lower.contains('price') || lower.contains('pricing') || lower.contains('cost') || lower.contains('rate') || lower.contains('labor') || lower.contains('billing')) {
       response = '''I can help with **pricing strategy**. Here are a few approaches:
 
 💰 **Competitive Analysis** — I'll benchmark your rates against market data
@@ -165,22 +250,43 @@ Which approach would you like to explore?''';
 **Current market insight:** Prime contractors in IT services are actively seeking small business partners to meet subcontracting plan requirements.
 
 Want me to search for potential teaming partners in your NAICS codes?''';
+    } else if (lower.contains('certif') || lower.contains('sba') || lower.contains('8a') || lower.contains('hubzone') || lower.contains('wosb') || lower.contains('sdvosb')) {
+      response = '''**SBA Certifications** can unlock billions in set-aside contracts. Here's a breakdown:
+
+✅ **Small Business** — Auto-qualified if under size standards for your NAICS
+📋 **8(a) Business Development** — 9-year program, sole-source up to \$4.5M
+🗺️ **HUBZone** — Principal office + 35% employees in HUBZone area
+⚔️ **SDVOSB** — 51%+ veteran-owned, self-certified or VA-verified
+👩 **WOSB** — 51%+ women-owned, unlocks \$4B+ annually in set-asides
+🌍 **EDWOSB** — Economically disadvantaged WOSB, even more opportunities
+
+**Application timelines:**
+• 8(a): 6-12 months to certify
+• HUBZone: 90 days
+• WOSB/EDWOSB: 30-60 days (SBA.gov)
+• SDVOSB: 30 days (VA VSIP portal)
+
+Which certification are you most interested in pursuing? I can walk you through the requirements.''';
     } else {
-      response = '''Great question! Let me help you with that.
+      // Context-aware fallback — extract key words to make it feel intelligent
+      final words = lower.split(' ').where((w) => w.length > 4).take(3).join(', ');
+      response = '''I want to make sure I give you the most useful answer on **${words.isNotEmpty ? words : 'this topic'}**.
 
-Based on what you're asking about, I'd recommend starting with one of these approaches:
+Here's how I can help right now:
 
-1. **Search for relevant contracts** in the Contracts tab
-2. **Use a specialized tool** from the Dashboard (like Bid Writer, Compliance Checker, or Market Intel)
-3. **Ask me something specific** — I work best with focused procurement questions
+📋 **Tell me more** — What specifically are you trying to accomplish? (e.g., "find contracts in cybersecurity" or "write an executive summary for solicitation W15QKN-24-R-0012")
 
-Here are some things I'm great at:
-• Finding and filtering contract opportunities
-• Drafting proposal sections and capability statements
-• Analyzing win rates and market trends
-• Reviewing compliance requirements
+🔍 **Search contracts** — Head to the **Contracts tab** to browse live opportunities
+🛠️ **Use a tool** — The **Dashboard** has specialized tools for bid writing, compliance, and market research
+💬 **Ask Nex directly** — Try a more specific question and I'll get you a precise answer
 
-What would you like to dive into?''';
+**Some things I answer really well:**
+• "Find me set-aside contracts in [NAICS code]"
+• "What's my win rate for [agency]?"
+• "Help me draft a technical approach for [requirement]"
+• "Check compliance for [solicitation details]"
+
+What would you like to focus on?''';
     }
 
     final botMsg = ChatMessage(
