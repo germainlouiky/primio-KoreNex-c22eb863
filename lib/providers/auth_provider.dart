@@ -60,13 +60,21 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> signUp({required String email, required String password}) async {
+  Future<bool> signUp({
+    required String email,
+    required String password,
+    String? username,
+  }) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final response = await _supabaseService.signUp(email: email, password: password);
+      final response = await _supabaseService.signUp(
+        email: email,
+        password: password,
+        username: username,
+      );
       _isLoading = false;
 
       if (response.user != null && response.user!.identities != null && response.user!.identities!.isEmpty) {

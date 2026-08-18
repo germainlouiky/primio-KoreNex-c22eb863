@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
 import '../theme/theme.dart';
+import '../widgets/auth/captcha_widget.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,17 +16,43 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _usernameController = TextEditingController();
   bool _obscure = true;
   bool _isSignUp = false;
   bool _rememberMe = false;
+  bool _captchaVerified = false;
 
   static const _prefKeyEmail = 'remembered_email';
   static const _prefKeyRemember = 'remember_me';
+
+  // Password strength: 0=empty, 1=weak, 2=fair, 3=strong, 4=very strong
+  int _passwordStrength = 0;
 
   @override
   void initState() {
     super.initState();
     _loadRememberedEmail();
+    _passwordController.addListener(_onPasswordChanged);
+  }
+
+  void _onPasswordChanged() {
+    if (_isSignUp) {
+      setState(() => _passwordStrength = _calcStrength(_passwordController.text));
+    }
+  }
+
+  int _calcStrength(String p) {
+    if (p.isEmpty) return 0;
+    int score = 0;
+    if (p.length >= 8) score++;
+    if (p.length >= 12) score++;
+    if (RegExp(r'[A-Z]').hasMatch(p) && RegExp(r'[a-z]').hasMatch(p)) score++;
+    if (RegExp(r'[0-9]').hasMatch(p)) score++;
+    if (RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-]').hasMatch(p)) score++;
+    if (score <= 1) return 1;
+    if (score == 2) return 2;
+    if (score == 3) return 3;
+    return 4;
   }
 
   Future<void> _loadRememberedEmail() async {
@@ -57,6 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _usernameController.dispose();
     super.dispose();
   }
 
@@ -65,15 +93,26 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleAuth() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
+    final username = _usernameController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      setState(() => _errorText = 'Please enter email and password.');
+      setState(() => _errorText = 'Please enter your email and password.');
       return;
     }
 
-    if (_isSignUp && password.length < 6) {
-      setState(() => _errorText = 'Password must be at least 6 characters.');
-      return;
+    if (_isSignUp) {
+      if (username.isEmpty) {
+        setState(() => _errorText = 'Please choose a username.');
+        return;
+      }
+      if (password.length < 8) {
+        setState(() => _errorText = 'Password must be at least 8 characters.');
+        return;
+      }
+      if (_passwordStrength < 2) {
+        setState(() => _errorText = 'Please choose a stronger password (see tips below).');
+        return;
+      }
     }
 
     setState(() => _errorText = null);
@@ -81,18 +120,21 @@ class _LoginScreenState extends State<LoginScreen> {
     bool success;
 
     if (_isSignUp) {
-      success = await auth.signUp(email: email, password: password);
+      success = await auth.signUp(
+        email: email,
+        password: password,
+        username: username,
+      );
       if (mounted && success) {
-        // If Supabase returned a session (email confirmation disabled), go straight in
         if (auth.isAuthenticated) {
           await _saveRememberMe(email);
           context.go('/dashboard');
           return;
         }
-        // Otherwise email confirmation is required
         setState(() {
           _isSignUp = false;
           _errorText = null;
+          _passwordStrength = 0;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -141,6 +183,26 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Color _strengthColor(ColorScheme colors) {
+    switch (_passwordStrength) {
+      case 1: return colors.error;
+      case 2: return const Color(0xFFF59E0B);
+      case 3: return const Color(0xFF22C55E);
+      case 4: return const Color(0xFF16A34A);
+      default: return colors.outlineVariant;
+    }
+  }
+
+  String _strengthLabel() {
+    switch (_passwordStrength) {
+      case 1: return 'Weak';
+      case 2: return 'Fair';
+      case 3: return 'Strong';
+      case 4: return 'Very Strong';
+      default: return '';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -186,22 +248,44 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: text.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
               ),
               SizedBox(height: MediaQuery.sizeOf(context).height * 0.06),
+
+              // ── Username field (sign-up only) ──────────────────────────
+              if (_isSignUp) ...[
+                Text('Username', style: text.labelLarge),
+                const SizedBox(height: AppTheme.spacingSm),
+                TextField(
+                  controller: _usernameController,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    hintText: 'Choose a display name',
+                    prefixIcon: Icon(Icons.person_outline_rounded),
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacingMd),
+              ],
+
+              // ── Email ──────────────────────────────────────────────────
               Text('Email', style: text.labelLarge),
               const SizedBox(height: AppTheme.spacingSm),
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   hintText: 'you@company.com',
                   prefixIcon: Icon(Icons.email_outlined),
                 ),
               ),
               const SizedBox(height: AppTheme.spacingMd),
+
+              // ── Password ───────────────────────────────────────────────
               Text('Password', style: text.labelLarge),
               const SizedBox(height: AppTheme.spacingSm),
               TextField(
                 controller: _passwordController,
                 obscureText: _obscure,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => isLoading ? null : _handleAuth(),
                 decoration: InputDecoration(
                   hintText: '••••••••',
                   prefixIcon: const Icon(Icons.lock_outline_rounded),
@@ -211,7 +295,100 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
+
+              // ── Password strength meter (sign-up only) ─────────────────
+              if (_isSignUp) ...[
+                const SizedBox(height: AppTheme.spacingSm),
+                Row(
+                  children: List.generate(4, (i) {
+                    final filled = _passwordStrength > i;
+                    final barColor = filled ? _strengthColor(colors) : colors.outlineVariant;
+                    return Expanded(
+                      child: Container(
+                        margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: barColor,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+                if (_passwordStrength > 0) ...[
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      _strengthLabel(),
+                      style: text.labelSmall?.copyWith(color: _strengthColor(colors)),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: AppTheme.spacingSm),
+                // Tips card
+                Container(
+                  padding: const EdgeInsets.all(AppTheme.spacingSm),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                    border: Border.all(color: colors.outlineVariant),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.shield_outlined, size: AppTheme.iconSm, color: colors.primary),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Strong password tips',
+                            style: text.labelSmall?.copyWith(color: colors.primary),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      ...[
+                        ('At least 8 characters', _passwordController.text.length >= 8),
+                        ('Upper & lowercase letters', RegExp(r'[A-Z]').hasMatch(_passwordController.text) && RegExp(r'[a-z]').hasMatch(_passwordController.text)),
+                        ('At least one number', RegExp(r'[0-9]').hasMatch(_passwordController.text)),
+                        ('A special character (!@#\$%…)', RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-]').hasMatch(_passwordController.text)),
+                      ].map((tip) {
+                        final met = tip.$2;
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Row(
+                            children: [
+                              Icon(
+                                met ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                size: 14,
+                                color: met ? const Color(0xFF22C55E) : colors.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                tip.$1,
+                                style: text.labelSmall?.copyWith(
+                                  color: met ? colors.onSurface : colors.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+                // ── CAPTCHA ───────────────────────────────────────────
+                const SizedBox(height: AppTheme.spacingMd),
+                CaptchaWidget(
+                  key: ValueKey(_isSignUp),
+                  onVerified: (ok) => setState(() => _captchaVerified = ok),
+                ),
+              ],
+
               const SizedBox(height: AppTheme.spacingSm),
+
+              // ── Remember me / Forgot password row ─────────────────────
               Row(
                 children: [
                   SizedBox(
@@ -254,6 +431,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                 ],
               ),
+
+              // ── Error banner ───────────────────────────────────────────
               if (_errorText != null) ...[
                 const SizedBox(height: AppTheme.spacingMd),
                 Container(
@@ -276,9 +455,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ],
+
               const SizedBox(height: AppTheme.spacingMd),
               ElevatedButton(
-                onPressed: isLoading ? null : _handleAuth,
+                onPressed: (isLoading || (_isSignUp && !_captchaVerified)) ? null : _handleAuth,
                 child: isLoading
                     ? SizedBox(
                         height: AppTheme.iconSm,
@@ -301,6 +481,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   GestureDetector(
                     onTap: () => setState(() {
                       _isSignUp = !_isSignUp;
+                      _passwordStrength = 0;
+                      _captchaVerified = false;
                       context.read<AuthProvider>().clearError();
                     }),
                     child: Text(

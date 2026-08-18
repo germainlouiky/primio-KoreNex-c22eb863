@@ -23,10 +23,12 @@ class SupabaseService {
   Future<AuthResponse> signUp({
     required String email,
     required String password,
+    String? username,
   }) async {
     return await _client.auth.signUp(
       email: email,
       password: password,
+      data: username != null && username.isNotEmpty ? {'username': username} : null,
     );
   }
 
