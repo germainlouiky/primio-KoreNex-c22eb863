@@ -494,7 +494,7 @@ class _CtaSectionState extends State<_CtaSection> {
         Text(
           widget.tier.name == 'Enterprise'
               ? 'No commitment required. Talk to sales today.'
-              : 'No credit card required. Cancel anytime.',
+              : '10-day free trial, then billed automatically. Cancel anytime.',
           style: widget.text.labelSmall,
           textAlign: TextAlign.center,
         ),
