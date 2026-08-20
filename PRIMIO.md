@@ -47,5 +47,3 @@ KoreNex is an AI-powered procurement suite for businesses automating contract di
 - Cards use subtle borders over elevation — lighter visual weight suits the dark background
 - Each tool has a unique accent color for quick visual identification across the grid
 - 8px spacing grid (spacingXs=4, spacingSm=8, spacingMd=16, spacingLg=24, spacingXl=32)
-
-<!-- deploy trigger 3 -->

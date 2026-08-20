@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
 import '../providers/auth_provider.dart';
 import '../theme/theme.dart';
 
@@ -119,7 +123,7 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
-class _CurrentPlanCard extends StatelessWidget {
+class _CurrentPlanCard extends StatefulWidget {
   final ColorScheme colors;
   final TextTheme text;
   final AppColorsExtension appColors;
@@ -131,7 +135,63 @@ class _CurrentPlanCard extends StatelessWidget {
   });
 
   @override
+  State<_CurrentPlanCard> createState() => _CurrentPlanCardState();
+}
+
+class _CurrentPlanCardState extends State<_CurrentPlanCard> {
+  bool _isLoading = false;
+
+  Future<void> _handleManageSubscription(BuildContext context) async {
+    setState(() => _isLoading = true);
+    try {
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please log in first')),
+          );
+        }
+        return;
+      }
+
+      final response = await http.post(
+        Uri.parse('https://zxwhkgcrtlvemqabcint.supabase.co/functions/v1/create-portal-session'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${session.accessToken}',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final portalUrl = data['url'];
+        if (portalUrl != null) {
+          await launchUrl(Uri.parse(portalUrl), webOnlyWindowName: '_self');
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No active subscription found, or something went wrong.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final colors = widget.colors;
+    final text = widget.text;
+    final appColors = widget.appColors;
+
     return Container(
       padding: const EdgeInsets.all(AppTheme.spacingMd),
       decoration: BoxDecoration(
@@ -176,7 +236,7 @@ class _CurrentPlanCard extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => context.go('/pricing'),
+                  onPressed: _isLoading ? null : () => _handleManageSubscription(context),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(0, 40),
                     side: BorderSide(color: colors.primary.withOpacity(0.5)),
@@ -184,7 +244,16 @@ class _CurrentPlanCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
                     ),
                   ),
-                  child: Text('Manage Plan', style: text.labelMedium?.copyWith(color: colors.primary)),
+                  child: _isLoading
+                      ? SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: colors.primary,
+                          ),
+                        )
+                      : Text('Manage Subscription', style: text.labelMedium?.copyWith(color: colors.primary)),
                 ),
               ),
               const SizedBox(width: AppTheme.spacingSm),
