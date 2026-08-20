@@ -1,9 +1,65 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
 import '../theme/theme.dart';
 
-class BillingScreen extends StatelessWidget {
+class BillingScreen extends StatefulWidget {
   const BillingScreen({super.key});
+
+  @override
+  State<BillingScreen> createState() => _BillingScreenState();
+}
+
+class _BillingScreenState extends State<BillingScreen> {
+  bool _isLoading = false;
+
+  Future<void> _handleManageSubscription() async {
+    setState(() => _isLoading = true);
+    try {
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please log in first')),
+          );
+        }
+        return;
+      }
+
+      final response = await http.post(
+        Uri.parse('https://zxwhkgcrtlvemqabcint.supabase.co/functions/v1/create-portal-session'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${session.accessToken}',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final portalUrl = data['url'];
+        if (portalUrl != null) {
+          await launchUrl(Uri.parse(portalUrl), webOnlyWindowName: '_self');
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No active subscription found, or something went wrong.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,18 +138,20 @@ class BillingScreen extends StatelessWidget {
                     const SizedBox(width: AppTheme.spacingSm),
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Cancellation flow coming soon')),
-                          );
-                        },
+                        onPressed: _isLoading ? null : _handleManageSubscription,
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(0, 40),
                           side: BorderSide(color: appColors.danger.withOpacity(0.4)),
                           foregroundColor: appColors.danger,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSmall)),
                         ),
-                        child: Text('Cancel Plan', style: text.labelMedium?.copyWith(color: appColors.danger)),
+                        child: _isLoading
+                            ? SizedBox(
+                                height: 14,
+                                width: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: appColors.danger),
+                              )
+                            : Text('Cancel Plan', style: text.labelMedium?.copyWith(color: appColors.danger)),
                       ),
                     ),
                   ],
