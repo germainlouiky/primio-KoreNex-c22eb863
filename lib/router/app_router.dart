@@ -32,6 +32,7 @@ import '../screens/tools/deadline_calendar_screen.dart';
 import '../screens/tools/price_estimator_screen.dart';
 import '../screens/tools/proposal_manager_screen.dart';
 import '../screens/tools/vendor_matching_screen.dart';
+import '../screens/tools/vendor_profile_screen.dart';
 import '../services/procurement_service.dart';
 import '../services/supabase_service.dart';
 
@@ -233,6 +234,10 @@ class AppRouter {
           );
           return PricingDetailScreen(tier: tier);
         },
+      ),
+      GoRoute(
+        path: '/vendor-profile',
+        builder: (context, state) => const VendorProfileScreen(),
       ),
       GoRoute(
         path: '/help',
